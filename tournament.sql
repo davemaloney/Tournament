@@ -6,7 +6,7 @@
 -- You can write comments in this file by starting them with two dashes, like
 -- these lines here.
 
-DROP DATABASE if exists tournament;
+DROP DATABASE IF EXISTS tournament;
 CREATE DATABASE tournament;
 \c tournament;
 
@@ -16,7 +16,6 @@ CREATE TABLE players (
 
 CREATE TABLE matches (
        matchid serial PRIMARY KEY,
---       round integer default 1,
        winner integer REFERENCES players(id),
        loser integer REFERENCES players(id));
 
@@ -25,7 +24,7 @@ CREATE VIEW wins AS
 		(SELECT count(*) FROM matches WHERE players.id = matches.winner) AS wins 
 	FROM players;
 
-CREATE VIEW opponentsList AS
+CREATE VIEW opponents_list AS
 		SELECT id, loser AS opponent
 		FROM players join matches
 		ON id = winner
@@ -35,12 +34,12 @@ CREATE VIEW opponentsList AS
 		ON id = loser
 	ORDER BY id, opponent;
 
-CREATE VIEW opponentsWinRank AS
-	SELECT opponentslist.id, sum(wins) AS opponent_wins
-		FROM opponentslist join wins 
+CREATE VIEW opponents_win_rank AS
+	SELECT opponents_list.id, sum(wins) AS opponent_wins
+		FROM opponents_list join wins 
 		ON opponent = wins.id 
-		GROUP BY opponentslist.id 
-		ORDER BY opponentslist.id;
+		GROUP BY opponents_list.id 
+		ORDER BY opponents_list.id;
 
 -- with help from http://discussions.udacity.com/t/p2-normalized-table-design/19927/2
 CREATE VIEW standings AS
@@ -48,22 +47,22 @@ CREATE VIEW standings AS
 		(SELECT count(*) FROM matches WHERE players.id = matches.winner) AS wins,
 		(SELECT count(*) FROM matches WHERE players.id = matches.winner OR players.id = matches.loser) AS matches, 
 	opponent_wins AS OMW
-FROM players LEFT JOIN opponentsWinRank ON players.id = opponentswinrank.id
+FROM players LEFT JOIN opponents_win_rank ON players.id = opponents_win_rank.id
 ORDER BY wins DESC, OMW DESC, matches;
 
 -- adapted from http://stackoverflow.com/questions/19595809/skip-every-nth-result-row-in-postgresql
 -- Odd rows
-CREATE VIEW oddRows AS
+CREATE VIEW odd_rows AS
 	SELECT o.id,o.name,o.wins,o.matches,row_number() over (ORDER BY wins DESC, matches)
 	FROM (SELECT id,name,wins,matches,row_number() over (ORDER BY wins DESC, matches) AS rank FROM standings) o 
 	WHERE o.rank % 2 = 1; 
 -- Even rows
-CREATE VIEW evenRows AS
+CREATE VIEW even_rows AS
 	SELECT e.id,e.name,e.wins,e.matches,row_number() over (ORDER BY wins DESC, matches)
 	FROM (SELECT id,name,wins,matches,row_number() over (ORDER BY wins DESC, matches) AS rank FROM standings) e
 	WHERE e.rank % 2 = 0; 
 
 CREATE VIEW pairs AS
-	SELECT oddRows.id AS id1, oddRows.name AS name1, evenRows.id AS id2, evenRows.name AS name2
-	FROM oddRows join evenRows
-	ON oddRows.row_number = evenRows.row_number;
+	SELECT odd_rows.id AS id1, odd_rows.name AS name1, even_rows.id AS id2, even_rows.name AS name2
+	FROM odd_rows join even_rows
+	ON odd_rows.row_number = even_rows.row_number;
